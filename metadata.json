@@ -1,0 +1,5 @@
+{
+  "name": "Ads Creative Generator",
+  "description": "A web application that leverages AI to generate compelling ad creatives for Facebook, including copy, visual concepts, and hashtags, tailored to your product and target audience.",
+  "requestFramePermissions": []
+}
