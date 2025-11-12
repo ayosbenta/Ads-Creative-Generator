@@ -123,7 +123,7 @@ export const generateAdCreative = async (formData: FormData): Promise<GeneratedC
 
 export const generateAdImage = async (prompt: string): Promise<string | null> => {
     try {
-        const fullPrompt = `A high-quality, professional, and eye-catching advertisement image for a product. The style should be clean and modern. The product is: ${prompt}. Do not include any text in the image.`;
+        const fullPrompt = `A high-quality, professional, and eye-catching advertisement image for a product, based on the following creative brief: "${prompt}". The style should be clean and modern, suitable for a Facebook ad. Do not include any text, logos, or watermarks in the image.`;
 
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image',

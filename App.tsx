@@ -11,6 +11,7 @@ const App: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
     productName: 'Eco-Friendly Reusable Coffee Cup',
     productDescription: 'A stylish, durable, and leak-proof coffee cup made from recycled bamboo fiber. Keeps your coffee hot for hours. Available in 5 vibrant colors.',
+    imagePrompt: 'A minimalist and clean product shot of the coffee cup on a light-colored, slightly textured background. The lighting should be soft and natural, emphasizing the cup\'s eco-friendly material.',
     targetAudience: 'Eco-conscious millennials, students, and office workers aged 20-35.',
     adTone: 'Persuasive',
     adObjective: 'Conversion',
@@ -37,9 +38,13 @@ const App: React.FC = () => {
     setIsInitialState(false);
 
     try {
+      const imagePrompt = formData.imagePrompt.trim()
+        ? formData.imagePrompt
+        : `A visually appealing ad image for '${formData.productName}'. Key features: ${formData.productDescription}. The ad's tone is ${formData.adTone} and it targets ${formData.targetAudience}.`;
+
       const [creativeResponse, imageResponse] = await Promise.all([
         generateAdCreative(formData),
-        generateAdImage(`${formData.productName} - ${formData.productDescription}`)
+        generateAdImage(imagePrompt)
       ]);
       
       setGeneratedContent(creativeResponse);

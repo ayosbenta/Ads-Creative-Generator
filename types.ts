@@ -4,6 +4,7 @@ export type AdSize = 'landscape' | 'portrait';
 export interface FormData {
   productName: string;
   productDescription: string;
+  imagePrompt: string;
   targetAudience: string;
   adTone: string;
   adObjective: string;
