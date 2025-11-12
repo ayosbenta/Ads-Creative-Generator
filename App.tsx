@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { AdSize, FormData, GeneratedCreative } from './types';
 import { generateAdCreative, generateAdImage } from './services/geminiService';
@@ -11,6 +10,7 @@ const App: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
     productName: 'Eco-Friendly Reusable Coffee Cup',
     productDescription: 'A stylish, durable, and leak-proof coffee cup made from recycled bamboo fiber. Keeps your coffee hot for hours. Available in 5 vibrant colors.',
+    referenceImage: null,
     imagePrompt: 'A minimalist and clean product shot of the coffee cup on a light-colored, slightly textured background. The lighting should be soft and natural, emphasizing the cup\'s eco-friendly material.',
     targetAudience: 'Eco-conscious millennials, students, and office workers aged 20-35.',
     adTone: 'Persuasive',
@@ -18,7 +18,8 @@ const App: React.FC = () => {
     adSize: 'portrait',
   });
   const [generatedContent, setGeneratedContent] = useState<GeneratedCreative | null>(null);
-  const [adImage, setAdImage] = useState<string>('https://picsum.photos/1080/1350');
+  const [adImages, setAdImages] = useState<string[]>(['https://picsum.photos/1080/1350']);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isInitialState, setIsInitialState] = useState(true);
@@ -27,15 +28,34 @@ const App: React.FC = () => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   }, []);
+  
+  const handleImageUpload = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData(prev => ({ ...prev, referenceImage: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  const handleImageRemove = useCallback(() => {
+    setFormData(prev => ({ ...prev, referenceImage: null }));
+  }, []);
+
 
   const handleSizeChange = useCallback((size: AdSize) => {
     setFormData(prev => ({ ...prev, adSize: size }));
+  }, []);
+
+  const handleSelectImage = useCallback((index: number) => {
+    setSelectedImageIndex(index);
   }, []);
 
   const handleGenerate = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     setIsInitialState(false);
+    setAdImages([]);
+    setSelectedImageIndex(0);
 
     try {
       const imagePrompt = formData.imagePrompt.trim()
@@ -44,16 +64,20 @@ const App: React.FC = () => {
 
       const [creativeResponse, imageResponse] = await Promise.all([
         generateAdCreative(formData),
-        generateAdImage(imagePrompt)
+        generateAdImage(imagePrompt, formData.adSize, formData.referenceImage)
       ]);
       
       setGeneratedContent(creativeResponse);
-      if (imageResponse) {
-        setAdImage(imageResponse);
+      if (imageResponse && imageResponse.length > 0) {
+        setAdImages(imageResponse);
+      } else {
+        setError('Failed to generate ad images, but text content was successful.');
+        setAdImages([`https://picsum.photos/${formData.adSize === 'portrait' ? '1080/1350' : '1200/628'}`]);
       }
     } catch (err) {
       console.error(err);
       setError('Failed to generate ad creative. Please check your API key and try again.');
+      setAdImages([`https://picsum.photos/${formData.adSize === 'portrait' ? '1080/1350' : '1200/628'}`]);
     } finally {
       setIsLoading(false);
     }
@@ -78,6 +102,8 @@ const App: React.FC = () => {
             <InputForm
               formData={formData}
               onFormChange={handleFormChange}
+              onImageUpload={handleImageUpload}
+              onImageRemove={handleImageRemove}
               onSizeChange={handleSizeChange}
               onSubmit={handleGenerate}
               isLoading={isLoading}
@@ -87,7 +113,9 @@ const App: React.FC = () => {
           <div className="lg:col-span-3 space-y-8">
             <AdPreview
               adSize={formData.adSize}
-              adImage={adImage}
+              adImages={adImages}
+              selectedImageIndex={selectedImageIndex}
+              onSelectImage={handleSelectImage}
               isLoading={isLoading}
               isInitialState={isInitialState}
               generatedContent={generatedContent}

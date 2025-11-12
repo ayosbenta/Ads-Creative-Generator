@@ -5,18 +5,21 @@ import { WorldIcon, LikeIcon, CommentIcon, ShareIcon } from './Icons';
 
 interface AdPreviewProps {
   adSize: AdSize;
-  adImage: string;
+  adImages: string[];
+  selectedImageIndex: number;
+  onSelectImage: (index: number) => void;
   isLoading: boolean;
   isInitialState: boolean;
   generatedContent: GeneratedCreative | null;
 }
 
-const AdPreview: React.FC<AdPreviewProps> = ({ adSize, adImage, isLoading, isInitialState, generatedContent }) => {
+const AdPreview: React.FC<AdPreviewProps> = ({ adSize, adImages, selectedImageIndex, onSelectImage, isLoading, isInitialState, generatedContent }) => {
   const aspectRatioClass = adSize === 'landscape' ? 'aspect-[1.91/1]' : 'aspect-[4/5]';
   
   const headline = generatedContent?.adCopies[0]?.headline || "Your Amazing Headline";
   const primaryText = generatedContent?.adCopies[0]?.primaryText || "Engaging primary text about your fantastic product goes here. Make it catchy!";
   const cta = generatedContent?.adCopies[0]?.callToAction || "Learn More";
+  const mainAdImage = adImages[selectedImageIndex] || `https://picsum.photos/${adSize === 'portrait' ? '1080/1350' : '1200/628'}`;
 
   return (
     <div className="bg-white dark:bg-brand-gray-800 p-4 rounded-xl shadow-lg">
@@ -42,7 +45,7 @@ const AdPreview: React.FC<AdPreviewProps> = ({ adSize, adImage, isLoading, isIni
 
         {/* Image/Video */}
         <div className={`relative bg-brand-gray-200 dark:bg-brand-gray-700 w-full ${aspectRatioClass}`}>
-          {isLoading && (
+          {(isLoading && adImages.length === 0) && (
             <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
               <svg className="animate-spin h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -50,9 +53,35 @@ const AdPreview: React.FC<AdPreviewProps> = ({ adSize, adImage, isLoading, isIni
               </svg>
             </div>
           )}
-          <img src={adImage} alt="Ad creative" className="absolute inset-0 w-full h-full object-cover" />
+          <img src={mainAdImage} alt="Ad creative" className="absolute inset-0 w-full h-full object-cover" />
         </div>
         
+        {/* Image Selector */}
+        {!isInitialState && (
+            <div className="p-4">
+                <h3 className="text-sm font-semibold text-brand-gray-700 dark:text-brand-gray-300 mb-2">Image Options</h3>
+                <div className="grid grid-cols-3 gap-2">
+                    {isLoading && adImages.length === 0 ? (
+                        [...Array(3)].map((_, i) => (
+                            <div key={i} className="aspect-square bg-brand-gray-200 dark:bg-brand-gray-700 rounded-md animate-pulse"></div>
+                        ))
+                    ) : (
+                        adImages.map((image, index) => (
+                            <button
+                                key={index}
+                                onClick={() => onSelectImage(index)}
+                                className={`relative aspect-square rounded-md overflow-hidden focus:outline-none ring-2 ring-offset-2 dark:ring-offset-brand-gray-800 transition-all ${selectedImageIndex === index ? 'ring-brand-blue' : 'ring-transparent'}`}
+                                aria-label={`Select image ${index + 1}`}
+                            >
+                                <img src={image} alt={`Ad image option ${index + 1}`} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 transition-colors"></div>
+                            </button>
+                        ))
+                    )}
+                </div>
+            </div>
+        )}
+
         {/* CTA Bar */}
         <div className="bg-brand-gray-100 dark:bg-brand-gray-700 p-3 flex justify-between items-center">
           <div className="text-left">

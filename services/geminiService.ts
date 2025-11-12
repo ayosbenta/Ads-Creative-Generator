@@ -1,6 +1,5 @@
-
 import { GoogleGenAI, Modality, Type } from '@google/genai';
-import { FormData, GeneratedCreative } from '../types';
+import { FormData, GeneratedCreative, AdSize } from '../types';
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable not set");
@@ -103,7 +102,6 @@ export const generateAdCreative = async (formData: FormData): Promise<GeneratedC
     const jsonString = response.text.trim();
     const parsedJson = JSON.parse(jsonString);
 
-    // Basic validation to ensure the structure is correct
     if (
       !parsedJson.adCopies ||
       !parsedJson.caption ||
@@ -121,30 +119,70 @@ export const generateAdCreative = async (formData: FormData): Promise<GeneratedC
 };
 
 
-export const generateAdImage = async (prompt: string): Promise<string | null> => {
+export const generateAdImage = async (prompt: string, adSize: AdSize, referenceImage?: string | null): Promise<string[]> => {
     try {
-        const fullPrompt = `A high-quality, professional, and eye-catching advertisement image for a product, based on the following creative brief: "${prompt}". The style should be clean and modern, suitable for a Facebook ad. Do not include any text, logos, or watermarks in the image.`;
+        if (referenceImage) {
+            // Use gemini-2.5-flash-image for image-to-image generation
+            const mimeType = referenceImage.split(';')[0].split(':')[1];
+            const base64Data = referenceImage.split(',')[1];
+            
+            const imagePart = {
+                inlineData: {
+                    mimeType,
+                    data: base64Data,
+                },
+            };
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image',
-            contents: {
-                parts: [{ text: fullPrompt }],
-            },
-            config: {
-                responseModalities: [Modality.IMAGE],
-            },
-        });
+            const textPart = {
+                text: `Based on the provided image, generate a new high-quality, professional advertisement image. Incorporate the following creative brief: "${prompt}". The style should be clean and modern, suitable for a Facebook ad. Do not include any text, logos, or watermarks in the new image.`,
+            };
+            
+            // Generate 3 images in parallel
+            const imagePromises = Array(3).fill(0).map(() => 
+                ai.models.generateContent({
+                    model: 'gemini-2.5-flash-image',
+                    contents: { parts: [imagePart, textPart] },
+                    config: {
+                        responseModalities: [Modality.IMAGE],
+                    },
+                })
+            );
 
-        for (const part of response.candidates[0].content.parts) {
-            if (part.inlineData) {
-                const base64ImageBytes: string = part.inlineData.data;
-                return `data:image/png;base64,${base64ImageBytes}`;
+            const responses = await Promise.all(imagePromises);
+            
+            const imageUrls = responses.map(response => {
+                const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+                if (imagePart?.inlineData) {
+                    return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+                }
+                return '';
+            }).filter(url => url !== '');
+
+            return imageUrls;
+
+        } else {
+            // Use imagen-4.0-generate-001 for text-to-image generation
+            const fullPrompt = `A high-quality, professional, and eye-catching advertisement image for a product, based on the following creative brief: "${prompt}". The style should be clean and modern, suitable for a Facebook ad. Do not include any text, logos, or watermarks in the image.`;
+            const aspectRatio = adSize === 'landscape' ? '16:9' : '3:4';
+
+            const response = await ai.models.generateImages({
+                model: 'imagen-4.0-generate-001',
+                prompt: fullPrompt,
+                config: {
+                    numberOfImages: 3,
+                    outputMimeType: 'image/jpeg',
+                    aspectRatio: aspectRatio,
+                },
+            });
+
+            if (response.generatedImages && response.generatedImages.length > 0) {
+                return response.generatedImages.map(img => `data:image/jpeg;base64,${img.image.imageBytes}`);
             }
         }
-        return null;
+        
+        return [];
     } catch (error) {
-        console.error('Error generating ad image:', error);
-        // Return a placeholder or null on error
-        return `https://picsum.photos/${Math.random() > 0.5 ? '1080/1350' : '1200/628'}`;
+        console.error('Error generating ad images:', error);
+        return [];
     }
 };
